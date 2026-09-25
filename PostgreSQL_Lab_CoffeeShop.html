@@ -502,7 +502,7 @@
 <tr><td>GUI (по желанию)</td><td>DBeaver / DataGrip / TablePlus</td><td>удобно смотреть данные; но все шаги пишутся под psql — так видно ровно то, что делает база</td></tr>
 </table>
 <pre class="life">
-postgres-lab/                       ← отдельный git-репозиторий
+postgresql-lab/                     ← отдельный git-репозиторий
 ├── docker-compose.yml              ← шаг 1.1
 ├── .psqlrc                         ← шаг 1.2 (монтируется в контейнер)
 ├── sql/
@@ -1352,7 +1352,7 @@ ORDER BY clients DESC, city;
 
 volumes:
   pgdata:</code></pre>
-<pre><code>$ mkdir -p postgres-lab/sql postgres-lab/bench &amp;&amp; cd postgres-lab &amp;&amp; git init
+<pre><code>$ mkdir -p postgresql-lab/sql postgresql-lab/bench &amp;&amp; cd postgresql-lab &amp;&amp; git init
 $ touch .psqlrc                        # заполним в шаге 1.2
 $ docker compose up -d
 $ docker compose logs -f postgres      # ждём "database system is ready to accept connections", Ctrl+C
