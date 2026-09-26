@@ -2,7 +2,7 @@
 
 ![PostgreSQL](PostgreSQL.png)
 
-> **26.09.2026 — методичка вычитана и исправлена.** Что найдено и что поправлено — в [fixes/postgresql.md](https://github.com/meeymirita/submodule-group-lab/blob/main/fixes/postgresql.md) сборного репозитория.
+> **26.09.2026 — методичка вычитана и исправлена.** Что найдено и что поправлено — в [fixes/postgresql.md](https://github.com/meeymirita/lab-fixes/blob/main/postgresql.md) репозитория `lab-fixes`.
 
 **Статус: ⚪ методичка готова, прохождение впереди.**
 **Сложность: средняя–высокая.** Проект полностью самостоятельный (свой репозиторий `postgresql-lab`, только SQL-файлы и `docker-compose.yml`), ни от одной другой лабы не зависит — общая с OOP- и PHP-лабами только идея «кофейни». Входной уровень — «умею SELECT/INSERT»; если JOIN пока «тёмный лес», есть вводная сессия 0. Параллели с Laravel/Eloquent даны по ходу, но фреймворк знать не обязательно.
