@@ -33,4 +33,4 @@ PostgreSQL 17 в Docker (образ `postgres:17`) + `psql` + `pgbench`. Рас�
 
 ---
 
-Часть сборного репозитория лабораторных работ — [submodule-group-lab](https://github.com/meeymirita/submodule-group-lab).
+Часть сборного репозитория лабораторных работ — [anitech-performance](https://github.com/meeymirita/anitech-performance).
