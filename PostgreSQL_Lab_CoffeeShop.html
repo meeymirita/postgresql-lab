@@ -352,7 +352,7 @@
             ──fork──► backend PID 103 (Laravel)        ─┘                  буферы WAL, снимки транзакций
  фоновые процессы:
    checkpointer          — периодически сбрасывает «грязные» страницы из кэша на диск (checkpoint)
-   background writer     — понемногу пишет грязные страницы заранее, чтобы backend'ам не пришлось
+   background writer     — понемногу пишет грязные страницы заранее, чтобы backend'ам не пришлось ждать записи при вытеснении страницы
    walwriter             — сбрасывает журнал WAL на диск
    autovacuum launcher   — запускает autovacuum worker'ы для таблиц с мёртвыми строками
    parallel workers      — временные помощники для параллельного Seq Scan / Hash Join
@@ -467,7 +467,7 @@
 <p>Схема кофейни. Стрелка — внешний ключ «кто на кого ссылается». Жирным в таблице ниже отмечено, что в схеме <b>намеренно</b> сделано «как в типичном проекте» — с проблемами,
 которые вы найдёте и почините.</p>
 <pre class="life">
-  shops (20) ◄──────────────┬──────────── inventory (8 000)  PK (shop_id, product_id), stock ≥ 0
+  shops (20) ◄──────────────┬──────────── inventory (4 000)  PK (shop_id, product_id), stock ≥ 0
     ▲                       │                  │
     │                  shifts (смены)          ▼
     │                                      products (200)   attrs jsonb
@@ -1166,7 +1166,7 @@ WHERE EXISTS (SELECT 1 FROM orders o WHERE o.client_id = c.id);   -- Анна, �
 -- а вот так — с дублями: JOIN возвращает строку на КАЖДЫЙ заказ
 SELECT c.name FROM clients c JOIN orders o ON o.client_id = c.id; -- Анна, Анна, Иван, …</code></pre>
 <div class="why"><b>Зачем:</b> вопросы «кто ни разу не заказывал», «какие напитки не продавались», «у кого есть хоть один отзыв» — самые частые в отчётах. <code>EXISTS</code>/<code>NOT EXISTS</code>
-читается как сам вопрос и не плодит дубли. Здесь же знакомая по шагу <a href="#step-2-2">2.2</a> ловушка: <code>NOT IN (SELECT client_id FROM orders)</code> вернёт пусто, потому что в
+читается как сам вопрос и не плодит дубли. Здесь же ловушка, которая ещё раз встретится в шаге <a href="#step-2-2">2.2</a>: <code>NOT IN (SELECT client_id FROM orders)</code> вернёт пусто, потому что в
 <code>orders.client_id</code> есть NULL (гостевой заказ №7) — проверьте сами.</div>
 <details class="deep"><summary>🔬 Под капотом: DISTINCT после JOIN — запах</summary><div class="deep-body">
 <p>Если после JOIN приходится писать <code>SELECT DISTINCT</code>, чтобы убрать дубли, почти всегда нужен был <code>EXISTS</code>. DISTINCT заставляет базу сначала собрать все дубли, а потом
@@ -1447,7 +1447,7 @@ coffee@coffee [pid 72] =# SELECT pg_backend_pid();</code></pre>
 </div></details></div>
 <div class="task"><p><b>Задание 2.</b> Сохраните число клиентов в переменную psql и выведите её через <code>\echo</code>.</p>
 <details class="deep"><summary>Ответ</summary><div class="deep-body">
-<pre><code>SELECT count(*) AS n FROM customers \gset
+<pre><code>SELECT count(*) AS n FROM sandbox.clients \gset
 \echo Клиентов: :n</code></pre>
 <p><code>\gset</code> кладёт каждую колонку результата в переменную с её именем. Этим же приёмом пользуются pgbench-скрипты в сессии 4.</p>
 </div></details></div>
@@ -2358,7 +2358,7 @@ FROM orders
 WHERE shop_id = 3 AND status IN ('paid', 'preparing')
 ORDER BY created_at;
 -- Parallel Seq Scan … Rows Removed by Filter: 333307 … Buffers ≈ 11 300 … Execution Time: ~125 ms</code></pre>
-<p>Активных заказов в системе около 3 000 из миллиона (0,3 %), а экран бариста опрашивает этот запрос каждые несколько секунд из каждой кофейни. Индекс по всему миллиону строк здесь избыточен —
+<p>Заказов в статусах <code>paid</code>/<code>preparing</code> в системе около 1 500 из миллиона (0,15 %), а экран бариста опрашивает этот запрос каждые несколько секунд из каждой кофейни. Индекс по всему миллиону строк здесь избыточен —
 нужны только активные:</p>
 <pre><code>-- экран бариста: активные заказы кофейни по времени
 CREATE INDEX orders_active_idx ON orders (shop_id, created_at)
@@ -2371,7 +2371,7 @@ WHERE shop_id = 3 AND status IN ('paid', 'preparing')
 ORDER BY created_at;
 
 SELECT pg_size_pretty(pg_relation_size('orders_active_idx'))           AS partial,
-       pg_size_pretty(pg_relation_size('orders_customer_created_idx')) AS full_index;</code></pre>
+       pg_size_pretty(pg_relation_size('orders_shop_created_idx'))      AS full_index;</code></pre>
 <pre class="life">
  Sort  (…) (actual time=0.805..0.811 rows=80 loops=1)
    -&gt;  Bitmap Heap Scan on orders  (…) (actual time=0.044..0.784 rows=80 loops=1)
@@ -3619,7 +3619,7 @@ FROM next
 WHERE o.id = next.id
 RETURNING o.id, o.created_at;</code></pre>
 <p>Проверьте в двух окнах: <code>BEGIN;</code> в [A] и [B], затем этот запрос в обоих — они получат <b>разные</b> id и ни один не будет ждать. <code>ROLLBACK</code> в обоих. Теперь уберите
-<code>SKIP LOCKED</code> и повторите: [B] будет ждать [A], а после COMMIT [A] получит… <code>UPDATE 0</code> — строка уже не <code>paid</code>, а следующую он не искал.</p>
+<code>SKIP LOCKED</code> и повторите: [B] будет ждать [A], а после COMMIT [B] получит… <code>UPDATE 0</code> — строка уже не <code>paid</code>, а следующую он не искал.</p>
 <div class="why"><b>Зачем:</b> это стандартный способ сделать очередь задач прямо в Postgres: без Redis и RabbitMQ, транзакционно вместе с остальными данными. Так устроены Laravel-драйвер
 очередей <code>database</code> и библиотеки вроде Oban, graphile-worker, pg-boss. Для этого запроса нужен индекс — частичный <code>orders_active_idx</code> из шага <a href="#step-4-2">4.2</a> уже подходит.</div>
 <details class="deep"><summary>🔬 Под капотом: пределы очереди в Postgres</summary><div class="deep-body">
@@ -3707,7 +3707,8 @@ upsert пачками без сортировки ключей. Общий ре�
 <div class="train-box"><span class="tag">🏋️ ТРЕНИРОВКА</span>
 <div class="task"><p><b>Задание 1.</b> Воспроизведите дедлок на переводе бонусов: [A] переводит 5 баллов от клиента 1 клиенту 2, [B] — от 2 клиенту 1, каждый обновляет сначала «отправителя».</p>
 <details class="deep"><summary>Ответ</summary><div class="deep-body">
-<pre><code>-- [A]
+<pre><code>UPDATE customers SET bonus_points = bonus_points + 100 WHERE id IN (1, 2);   -- иначе на 0 упадёт CHECK (bonus_points &gt;= 0)
+-- [A]
 BEGIN; UPDATE customers SET bonus_points = bonus_points - 5 WHERE id = 1;
 -- [B]
 BEGIN; UPDATE customers SET bonus_points = bonus_points - 5 WHERE id = 2;
@@ -3840,7 +3841,8 @@ ALTER TABLE shops ADD COLUMN phone text;
 <tr><td>Смена типа колонки</td><td><code>ALTER COLUMN TYPE</code> — перезапись таблицы</td><td>новая колонка → фоновое заполнение пачками → переключение кода → удаление старой</td></tr>
 <tr><td>Любая DDL</td><td>без таймаута</td><td><code>SET lock_timeout = '3s'</code> + повтор в цикле</td></tr>
 </table>
-<pre><code>-- попробуйте на orders: индекс для списка заказов кофейни (из шага 6.1) без блокировки записи
+<pre><code>-- попробуйте на orders: индекс для списка заказов кофейни (из шага 3.4) без блокировки записи
+DROP INDEX orders_shop_created_idx;
 CREATE INDEX CONCURRENTLY orders_shop_created_idx ON orders (shop_id, created_at);</code></pre>
 <div class="why"><b>Зачем:</b> «миграция положила прод» — одна из самых частых аварий в командах, где никто не думал о блокировках. <code>php artisan migrate</code> в Laravel выполняет обычный DDL;
 для больших таблиц в Postgres миграцию с индексом пишут через <code>DB::statement('CREATE INDEX CONCURRENTLY …')</code> и отключают обёртку миграции в транзакцию
