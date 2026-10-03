@@ -13,7 +13,7 @@ Postgres есть почти в каждой лабе, но везде он бы
 
 ## Стек
 
-PostgreSQL 17 в Docker (образ `postgres:17`) + `psql` + `pgbench`. Расширения из образа: `pg_stat_statements`, `pg_trgm`, `pageinspect`, `btree_gist`. Никакого фреймворка и ORM — только база; GUI (DBeaver / DataGrip / TablePlus) по желанию.
+PostgreSQL 18 в Docker (образ `postgres:18`) + `psql` + `pgbench`. Расширения из образа: `pg_stat_statements`, `pg_trgm`, `pageinspect`, `btree_gist`. Никакого фреймворка и ORM — только база; GUI (DBeaver / DataGrip / TablePlus) по желанию.
 
 ## Формат
 
